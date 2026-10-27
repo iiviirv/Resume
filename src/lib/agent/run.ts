@@ -25,7 +25,7 @@ import { agentDedupeKey, candidateData } from "./candidates";
 import { agentDraftJob, draftJobKey } from "./draft";
 import { recordRunEnd, recordRunStart, runLimitProblem } from "./runs";
 
-// One run of the job agent (E16-3): one search, the postings seen before
+// One run of the job agent (E16-3): a search with optional remote coverage, the postings seen before
 // dropped, and a score for the newest of the rest. It never sends anything.
 // Adapted from avinashbatchala's fork of Dossier.
 
@@ -90,7 +90,7 @@ export async function newPostings(postings: readonly FoundPosting[]): Promise<Fo
 const newestFirst = (a: FoundPosting, b: FoundPosting) => (b.postedAt ? Date.parse(b.postedAt) : 0) - (a.postedAt ? Date.parse(a.postedAt) : 0);
 
 /**
- * One run: the first page of results only (one source request), then a
+ * One run: the first page of each search branch only (at most two source requests), then a
  * score for the newest new postings, up to agentMaxScores. Each is kept as a
  * candidate, so it doesn't come back; one below agentMinScore stays out of
  * the queue. With auto-draft on, the best of them get a draft each, up to
@@ -102,7 +102,7 @@ export async function runAgentScan({ manual }: { manual: boolean }, context: Job
   if (!settings.agentEnabled && !manual) return stopped("The job agent is off.");
   const setup = await agentSetupProblem(settings.agentQuery);
   if (setup) return stopped(setup);
-  const limit = runLimitProblem(settings.agentRuns, now, { manual: false });
+  const limit = runLimitProblem(settings.agentRuns, now, { manual });
   if (limit) return stopped(limit);
 
   const run = await recordRunStart(now, manual);
@@ -116,8 +116,8 @@ export async function runAgentScan({ manual }: { manual: boolean }, context: Job
   const source = config.source!;
   let postings: FoundPosting[];
   try {
-    // The first page only: the agent never asks for a second.
-    postings = (await searchPostings(source, credentialsFor(config, source), settings.agentQuery, null, requestContext(source))).postings;
+    // The first page of local and optional remote results; no pagination.
+    postings = (await searchPostings(source, credentialsFor(config, source), settings.agentQuery, null, { ...requestContext(source), signal: context.signal })).postings;
   } catch (error) {
     if (error instanceof JobSearchError) return finish(stopped(error.message));
     throw error;
@@ -127,7 +127,14 @@ export async function runAgentScan({ manual }: { manual: boolean }, context: Job
   const counts = { found: postings.length, fresh: fresh.length, skipped: postings.length - fresh.length, drafted: 0 };
   if (fresh.length === 0) return finish({ ...counts, scored: 0, message: postings.length === 0 ? "The search found no postings this time." : "No new postings this time." });
 
-  const toScore = fresh.toSorted(newestFirst).slice(0, settings.agentMaxScores);
+  const newest = fresh.toSorted(newestFirst);
+  // Give both local and remote roles a look within the same score budget.
+  const groups = [newest.filter((posting) => posting.remote === true), newest.filter((posting) => posting.remote !== true)];
+  if (newest[0]?.remote !== true) groups.reverse();
+  const ordered = settings.agentQuery.includeRemote
+    ? newest.flatMap((_, index) => groups.flatMap((group) => group[index] ? [group[index]] : []))
+    : newest;
+  const toScore = ordered.slice(0, settings.agentMaxScores);
   await context.step(`Scoring ${toScore.length} ${toScore.length === 1 ? "posting" : "postings"}`);
   const [provider, options, profile] = await Promise.all([getAiProvider(), loadTaskOptions(), loadProfile()]);
   let scored = 0;

@@ -122,8 +122,9 @@ export function postingFromJob(job: Job): FoundPosting {
 }
 
 /** "designer in Hamburg": JSearch reads the place from the query text, as Google does. */
-function queryText({ keywords, place }: SearchQuery): string {
-  return place ? `${keywords} in ${place}` : keywords;
+function queryText({ keywords, place, country }: SearchQuery): string {
+  const location = country === "ca" ? [place, "Canada"].filter(Boolean).join(", ") : place;
+  return location ? `${keywords} in ${location}` : keywords;
 }
 
 function searchUrl(query: SearchQuery, host: JSearchHost, next: string | null, baseUrl?: string): URL {

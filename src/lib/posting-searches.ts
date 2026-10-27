@@ -6,6 +6,7 @@ import { askSource } from "@/lib/job-search/find";
 import {
   EMPTY_QUERY,
   foundPostingSchema,
+  linkKey,
   postingKey,
   searchQuerySchema,
   type FoundPosting,
@@ -81,7 +82,16 @@ export async function showMoreFor(id: string): Promise<{ ok: true; postings: Sho
   if (!answer.ok) return answer;
   const kept = postingsOf(search.postings);
   const seen = new Set(kept.map(postingKey));
-  const added = answer.postings.filter((posting) => !seen.has(postingKey(posting)));
+  const seenLinks = new Set(kept.map((posting) => linkKey(posting.url)).filter(Boolean));
+  // Later branch pages can return the same apply link under another source ID.
+  const added = answer.postings.filter((posting) => {
+    const key = postingKey(posting);
+    const link = linkKey(posting.url);
+    if (seen.has(key) || (link && seenLinks.has(link))) return false;
+    seen.add(key);
+    if (link) seenLinks.add(link);
+    return true;
+  });
   const postings = [...kept, ...added];
   await prisma.postingSearch.update({ where: { id }, data: { postings, found: postings.length, next: answer.next } });
   return { ok: true, postings: await withStates(added), next: answer.next };

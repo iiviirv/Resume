@@ -21,6 +21,15 @@ import {
 } from "./search";
 
 describe("search in the URL", () => {
+  it("round-trips combined Toronto and Canada remote coverage without changing old searches", () => {
+    const query = { ...EMPTY_QUERY, keywords: "FP&A", place: "Toronto", country: "ca", includeRemote: true };
+    const href = searchHref(query);
+    expect(href).toContain("includeRemote=1");
+    expect(queryFromParams(Object.fromEntries(new URL(href, "http://x").searchParams))).toEqual(query);
+    expect(searchQuerySchema.parse(query).includeRemote).toBe(true);
+    expect(searchQuerySchema.parse(EMPTY_QUERY).includeRemote).toBeUndefined();
+  });
+
   it("round-trips a search", () => {
     const query = { keywords: "product designer", place: "Hamburg", country: "de", radiusKm: 50 as const, remoteOnly: true, postedWithin: "week" as const };
     const href = searchHref(query);

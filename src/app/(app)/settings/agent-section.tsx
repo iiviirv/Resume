@@ -87,7 +87,7 @@ export function AgentSection({
   return (
     <>
       <SettingsSectionIntro title="Job agent">
-        Once a day it runs one search, scores the new postings against your profile, and keeps the best on the Agent screen. It never sends or applies.
+        Once a day it searches for jobs, scores the new postings against your profile, and keeps the best on the Agent screen. Include remote to cover local and countrywide remote roles within the same scoring limit. It never sends or applies.
       </SettingsSectionIntro>
 
       {source === "ARBEITSAGENTUR" ? (

@@ -88,6 +88,16 @@ beforeEach(() => {
 });
 
 describe("the search form", () => {
+  it("submits local plus remote coverage and shows its quota and eligibility guidance", async () => {
+    const user = userEvent.setup();
+    vi.mocked(runJobSearch).mockResolvedValue({ ok: true, data: { ok: true, id: "run-new" } });
+    renderScreen();
+    await user.click(screen.getByLabelText("Include remote"));
+    expect(screen.getByText(/Uses up to two searches from your plan/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /^Search$/ }));
+    expect(runJobSearch).toHaveBeenCalledWith({ query: { ...query, includeRemote: true } });
+  });
+
   it("points to Settings while job search is off", () => {
     renderScreen({ source: null });
     expect(screen.getByRole("heading", { name: "Choose where to search" })).toBeInTheDocument();

@@ -84,11 +84,22 @@ export function SearchFields({
 /** "Remote only", with what it means on Adzuna, which has no such filter. */
 export function RemoteOnlyField({ value, onChange, source }: { value: SearchQuery; onChange: (patch: Partial<SearchQuery>) => void; source: JobSource | null }) {
   return (
-    <Checkbox
-      label="Remote only"
-      checked={value.remoteOnly}
-      onChange={(event) => onChange({ remoteOnly: event.target.checked })}
-      hint={source === "ADZUNA" && value.remoteOnly ? "Adzuna has no remote filter, so this adds “remote” to your search." : undefined}
-    />
+    <div className="flex flex-col gap-3">
+      <Checkbox
+        label="Remote only"
+        checked={value.remoteOnly}
+        onChange={(event) => onChange({ remoteOnly: event.target.checked, ...(value.includeRemote ? { includeRemote: false } : {}) })}
+        hint={source === "ADZUNA" && value.remoteOnly ? "Adzuna has no remote filter, so this adds “remote” to your search." : undefined}
+      />
+      {!value.remoteOnly && source !== "ARBEITSAGENTUR" && (
+        <Checkbox
+          label="Include remote"
+          checked={Boolean(value.includeRemote)}
+          onChange={(event) => onChange({ includeRemote: event.target.checked })}
+          hint="Also search remote roles across the chosen country. Uses up to two searches from your plan. Check each posting's residency and work authorization requirements."
+        />
+      )}
+      {value.remoteOnly && <p className="text-meta text-muted">Searches the whole country, without a city radius. Check each posting&apos;s residency and work authorization requirements.</p>}
+    </div>
   );
 }
