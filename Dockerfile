@@ -39,7 +39,7 @@ RUN yarn install --immutable
 FROM deps AS build
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY . .
-RUN yarn prisma generate && yarn build
+RUN yarn prisma generate --config prisma.config.ts && yarn build
 # Prisma's CLI for `migrate deploy`, at the version in yarn.lock, with the
 # same resolutions as package.json; not the rest of the dev dependencies.
 RUN mkdir /tools && node -e ' \
@@ -51,7 +51,7 @@ RUN mkdir /tools && node -e ' \
     overrides: Object.fromEntries(Object.entries(resolutions).map(([from, to]) => [from.split("@npm:")[0], to])), \
   }));' \
   && cd /tools && npm install --omit=dev --no-audit --no-fund \
-  && cp -r /app/prisma7.config.ts /app/prisma /tools/
+  && cp -r /app/prisma.config.ts /app/prisma /tools/
 # The seed as one JavaScript file, so it runs without tsx (E12-3). Bundled
 # CommonJS packages (pg) need a real require.
 RUN node_modules/.bin/esbuild prisma/seed.ts --bundle --platform=node --format=esm --target=node24 \

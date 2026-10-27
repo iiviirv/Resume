@@ -7,7 +7,8 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadSettings, saveSettings } from "@/lib/settings-data";
 import { createTestClient, resetDatabase } from "@/test/db";
 
-import { lastNightlyBackup, nextRun, pruneBackups, runNightlyBackup } from "./backup-schedule";
+import { lastNightlyBackup, nextRun, pruneBackups, runNightlyBackup, startBackupSchedule } from "./backup-schedule";
+import { writeBackup } from "./backups";
 
 const db = vi.hoisted(() => ({ client: undefined as ReturnType<typeof createTestClient> | undefined }));
 vi.mock("@/lib/prisma", async () => {
@@ -15,9 +16,9 @@ vi.mock("@/lib/prisma", async () => {
   db.client = createTestClient();
   return { prisma: db.client };
 });
-const dataDir = vi.hoisted(() => ({ path: "" }));
+const dataDir = vi.hoisted(() => ({ path: "", fileBackups: undefined as string | undefined }));
 vi.mock("@/lib/env", () => ({
-  env: { get DOSSIER_DATA_DIR() { return dataDir.path; }, DOSSIER_BACKUP_RETENTION_DAYS: 14, DOSSIER_SECRET: "s".repeat(32) },
+  env: { get DOSSIER_DATA_DIR() { return dataDir.path; }, get DOSSIER_FILE_BACKUPS() { return dataDir.fileBackups; }, DOSSIER_BACKUP_RETENTION_DAYS: 14, DOSSIER_SECRET: "s".repeat(32) },
 }));
 vi.mock("@/lib/log", () => ({ logServerError: vi.fn() }));
 
@@ -25,6 +26,7 @@ const prisma = () => db.client!;
 const backups = () => readdir(path.join(dataDir.path, "backups")).catch(() => [] as string[]);
 
 beforeEach(async () => {
+  dataDir.fileBackups = undefined;
   dataDir.path = await mkdtemp(path.join(tmpdir(), "dossier-backups-"));
   await resetDatabase(prisma());
   await prisma().application.create({ data: { company: "Ledgerly" } });
@@ -35,6 +37,17 @@ afterAll(async () => {
 });
 
 describe("nightly backups (E10-7)", () => {
+  it("disables nightly and before-import file backups regardless of the saved setting", async () => {
+    dataDir.fileBackups = "off";
+    await saveSettings({ nightlyBackup: true });
+    expect(await runNightlyBackup()).toBe("off");
+    expect(await writeBackup("before-import")).toBeNull();
+    expect(await backups()).toEqual([]);
+    const timer = vi.spyOn(globalThis, "setTimeout");
+    startBackupSchedule();
+    expect(timer).not.toHaveBeenCalled();
+    timer.mockRestore();
+  });
   it("run at the next 03:00", () => {
     expect(nextRun(new Date(2026, 8, 28, 1, 30))).toEqual(new Date(2026, 8, 28, 3, 0));
     expect(nextRun(new Date(2026, 8, 28, 3, 0))).toEqual(new Date(2026, 8, 29, 3, 0));

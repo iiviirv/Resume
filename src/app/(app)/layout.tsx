@@ -15,6 +15,10 @@ import { appVersion } from "@/lib/version";
 import { Sidebar } from "./sidebar";
 import { UsagePingDialog } from "./usage-ping-dialog";
 
+// Authenticated pages read personal data only at request time. This also
+// keeps production image builds independent of database credentials.
+export const dynamic = "force-dynamic";
+
 /**
  * The signed-in shell: sidebar on the left, the screen on the right. Routes
  * outside the (app) group, such as /login, render without it. Every page

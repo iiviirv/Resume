@@ -3,6 +3,7 @@ import "server-only";
 import { AgentCandidateStatus } from "@/generated/prisma/enums";
 import { addDays, dayOf } from "@/lib/calendar-view";
 import { zonedTime } from "@/lib/google/slots";
+import { env } from "@/lib/env";
 import { findUnfinishedJobs, startJob } from "@/lib/jobs/runner";
 import { logServerError } from "@/lib/log";
 import { prisma } from "@/lib/prisma";
@@ -69,6 +70,7 @@ const globalForAgent = globalThis as unknown as { agentTimer?: ReturnType<typeof
 export function startAgentSchedule(): void {
   if (globalForAgent.agentTimer) return;
   void resetInterruptedDrafts().catch((error: unknown) => logServerError("job agent", error));
+  if (env.DOSSIER_SCHEDULER === "external") return;
   const check = () => void startDueRun().catch((error: unknown) => logServerError("job agent schedule", error));
   globalForAgent.agentTimer = setInterval(check, EVERY_MS);
   // Don't keep the process alive just for this.

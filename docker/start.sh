@@ -5,7 +5,7 @@
 set -eu
 
 cd /app/tools
-if ! node node_modules/prisma/build/index.js migrate deploy; then
+if ! node node_modules/prisma/build/index.js migrate deploy --config prisma.config.ts; then
   echo "Dossier didn't start: applying the database migrations failed (see the error above). See Troubleshooting in the wiki: https://github.com/AienTech/dossier/wiki/Troubleshooting" >&2
   exit 1
 fi

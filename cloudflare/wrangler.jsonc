@@ -1,0 +1,28 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "dossier",
+  "main": "worker.ts",
+  "account_id": "22dc56eb53bedd54deac8e8f23ff61cf",
+  "compatibility_date": "2026-10-27",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": false,
+  "containers": [{
+    "class_name": "DossierContainer",
+    "image": "../Dockerfile",
+    "image_build_context": "..",
+    "instance_type": "basic",
+    "max_instances": 1
+  }],
+  "durable_objects": {
+    "bindings": [{ "name": "DOSSIER", "class_name": "DossierContainer" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["DossierContainer"] }],
+  "triggers": { "crons": ["*/15 * * * *"] },
+  "r2_buckets": [{ "binding": "BACKUPS", "bucket_name": "dossier-backups" }],
+  "vars": {
+    "TZ": "America/Toronto",
+    "DOSSIER_TELEMETRY": "off"
+  },
+  "observability": { "enabled": true, "head_sampling_rate": 0.1 }
+}

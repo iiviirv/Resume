@@ -100,7 +100,8 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           hasApiKey={[settings.apiKeyEnc, settings.jsearchKeyEnc, settings.adzunaKeyEnc].some((key) => key !== null)}
           exportName={exportFileName()}
           backups={{
-            on: settings.nightlyBackup,
+            on: env.DOSSIER_FILE_BACKUPS !== "off" && settings.nightlyBackup,
+            managedExternally: env.DOSSIER_FILE_BACKUPS === "off",
             retentionDays: env.DOSSIER_BACKUP_RETENTION_DAYS,
             dir: backupsDir(),
             lastRun: whenRan(await lastNightlyBackup()),

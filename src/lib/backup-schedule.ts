@@ -37,7 +37,7 @@ export async function pruneBackups(now: Date, days = env.DOSSIER_BACKUP_RETENTIO
  * kept in Settings, so the row can show it, and cleared by the next success.
  */
 export async function runNightlyBackup(now = new Date()): Promise<"written" | "off"> {
-  if (!(await loadSettings()).nightlyBackup) return "off";
+  if (env.DOSSIER_FILE_BACKUPS === "off" || !(await loadSettings()).nightlyBackup) return "off";
   try {
     await writeBackup("nightly", now);
     await pruneBackups(now);
@@ -61,6 +61,7 @@ const globalForSchedule = globalThis as unknown as { backupTimer?: ReturnType<ty
 
 /** Starts the nightly timer, once per process (dev reloads keep the one they have). */
 export function startBackupSchedule(): void {
+  if (env.DOSSIER_SCHEDULER === "external" || env.DOSSIER_FILE_BACKUPS === "off") return;
   if (globalForSchedule.backupTimer) return;
   const schedule = () => {
     const now = new Date();

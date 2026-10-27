@@ -17,6 +17,9 @@ const CONNECTOR_PATHS = /^\/(?:api\/(?:mcp|oauth)(?:\/|$)|\.well-known\/oauth-(?
  */
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+  // This exact endpoint checks its machine credential before any work.
+  // All other private routes retain the existing session checks.
+  if (pathname === "/api/internal/cron" || pathname === "/api/internal/backup") return NextResponse.next();
   if (pathname === "/login") return pass(request);
   // The Claude connector (#221) brings its own credentials, an OAuth token,
   // which its routes check; they answer 404 while it's off.

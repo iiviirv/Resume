@@ -24,6 +24,11 @@ function problems(source: Record<string, string | undefined>): string[] {
 }
 
 describe("parseEnv", () => {
+  it("requires a strong machine credential for external scheduling", () => {
+    expect(() => parseEnv({ ...valid, DOSSIER_SCHEDULER: "external" })).toThrow(/DOSSIER_CRON_SECRET/);
+    expect(() => parseEnv({ ...valid, DOSSIER_CRON_SECRET: "short" })).toThrow(/DOSSIER_CRON_SECRET/);
+    expect(parseEnv({ ...valid, DOSSIER_SCHEDULER: "external", DOSSIER_CRON_SECRET: "s".repeat(32), DOSSIER_FILE_BACKUPS: "off" })).toMatchObject({ DOSSIER_FILE_BACKUPS: "off" });
+  });
   it("accepts the required variables and fills in defaults", () => {
     expect(parseEnv(valid)).toEqual({
       ...valid,

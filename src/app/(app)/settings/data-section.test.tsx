@@ -36,6 +36,12 @@ vi.mock("@/hooks/use-job", async () => {
 });
 
 describe("Your data (E10-4)", () => {
+  it("shows external recovery guidance and hides the ineffective backup switch", () => {
+    render(<DataSection jobRetentionHours={24} hasApiKey={false} exportName="x.json" backups={{ ...backups, on: false, managedExternally: true }} />);
+    expect(screen.getByText(/Backups are managed externally/)).toBeInTheDocument();
+    expect(screen.queryByRole("switch", { name: "Nightly backups" })).not.toBeInTheDocument();
+    expect(screen.getByText(/Export your current data before replacing it/)).toBeInTheDocument();
+  });
   it("exports everything, the API key only when ticked", async () => {
     const user = userEvent.setup();
     render(<DataSection jobRetentionHours={24} hasApiKey exportName="dossier-export-2026-09-28.json" backups={backups} />);
