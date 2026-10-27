@@ -59,9 +59,46 @@ export class DossierContainer extends Container<Env> {
     if (day && await this.ctx.storage.get("backupDay") !== day) {
       const backup = await this.containerFetch("http://container/api/internal/backup", { headers: auth });
       if (!backup.ok || !backup.body) throw new Error("Dossier backup failed");
-      await this.env.BACKUPS.put(`nightly/${day}.json`, backup.body, {
+      const lengthHeader = backup.headers.get("content-length");
+      const length = Number(lengthHeader);
+      if (!lengthHeader || !/^\d+$/.test(lengthHeader) || !Number.isSafeInteger(length) || length < 1) {
+        await backup.body.cancel();
+        throw new Error("Dossier backup response length is invalid");
+      }
+      // containerFetch() wraps the response in an unknown-length stream. R2
+      // requires a known length; this also rejects truncated/overlong exports.
+      const fixed = new FixedLengthStream(length);
+      const reader = backup.body.getReader();
+      const writer = fixed.writable.getWriter();
+      // Explicit copying avoids workerd's unsupported native-transform to
+      // native-transform pipeTo shortcut, without buffering the export.
+      const copying = (async () => {
+        try {
+          for (;;) {
+            const chunk = await reader.read();
+            if (chunk.done) break;
+            await writer.write(chunk.value);
+          }
+          await writer.close();
+        } catch (error) {
+          await writer.abort(error).catch(() => {});
+          await reader.cancel(error).catch(() => {});
+          throw error;
+        }
+      })();
+      const uploading = Promise.resolve().then(() => this.env.BACKUPS.put(`nightly/${day}.json`, fixed.readable, {
         httpMetadata: { contentType: "application/json" },
-      });
+      }));
+      try {
+        await Promise.all([copying, uploading]);
+      } catch (error) {
+        await Promise.allSettled([reader.cancel(error), writer.abort(error)]);
+        await Promise.allSettled([copying, uploading]);
+        throw error;
+      } finally {
+        reader.releaseLock();
+        writer.releaseLock();
+      }
       await this.ctx.storage.put("backupDay", day);
       console.log("Dossier private R2 backup completed");
       const cutoff = new Date(now.getTime() - 14 * 86_400_000).toISOString().slice(0, 10);

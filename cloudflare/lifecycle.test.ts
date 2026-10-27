@@ -21,6 +21,12 @@ registerHooks({
 
 const { DossierContainer, default: worker } = await import("./worker.ts");
 
+// Node has no FixedLengthStream. Actual size enforcement is tested separately
+// in backup.r2.test.ts against workerd, the real SDK, and an R2 binding.
+Object.defineProperty(globalThis, "FixedLengthStream", { value: class extends TransformStream {
+  constructor(length: number) { super(); void length; }
+} });
+
 test("public internal routes fail closed before container access", async () => {
   let called = 0;
   const env = { DOSSIER_CRON_SECRET: "s".repeat(32), DOSSIER: { getByName() { called++; throw new Error("should not run"); } } };
@@ -70,7 +76,9 @@ test("backup completion is recorded only after durable upload succeeds", async (
   const recorded: string[] = [];
   let failUpload = true;
   const env = {
-    transport: async (url: string) => url.endsWith("/backup") ? Response.json({ format: "dossier-export" }) : Response.json({ ok: true }),
+    transport: async (url: string) => url.endsWith("/backup")
+      ? new Response('{"format":"dossier-export"}', { headers: { "content-length": "27" } })
+      : Response.json({ ok: true }),
     BACKUPS: {
       async put(_key: string, body: ReadableStream) {
         await new Response(body).text();
