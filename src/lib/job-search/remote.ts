@@ -17,9 +17,9 @@ export function excludesCanada(posting: Pick<FoundPosting, "title" | "place" | "
   // Keep alternatives that explicitly allow Canada, and negated requirements.
   return text.replace(/U\.S\.(?:A\.)?/gi, "United States").split(/[.!?;\n]/).some((sentence) => {
     const stated = sentence.replace(/\bnot (?:US|United States)[- ]only\b/gi, "");
+    if (/\b(?:US|United States) (?:or|and) (?:in )?Canada\b|\bCanada (?:or|and) (?:the )?(?:US|United States)\b/i.test(sentence)) return false;
     if (onlyUS.test(stated)) return true;
     if (/\b(?:not|never) (?:need|required)|\b(?:do not|don.t) (?:need|have) to/i.test(sentence)) return false;
-    if (/\b(?:US|United States) (?:or|and) (?:in )?Canada\b|\bCanada (?:or|and) (?:the )?(?:US|United States)\b/i.test(sentence)) return false;
     const remoteUS = new RegExp(`\\bremote (?:only )?(?:within|in) (?:the )?${us}\\b`, "i");
     const requiredUS = new RegExp(`\\bmust (?:have (?:valid )?${us} work authorization|be (?:a )?${us} citizen)\\b`, "i");
     return residence.test(sentence) || authorization.test(sentence) || remoteUS.test(sentence) || requiredUS.test(sentence);

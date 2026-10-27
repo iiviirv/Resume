@@ -14,6 +14,18 @@ describe("remote eligibility", () => {
     }
   });
 
+  it("preserves Canada alternatives before rejecting a US-only prefix", () => {
+    for (const description of [
+      "Only open to residents of the United States or Canada",
+      "Only open to residents of the U.S. or Canada",
+      "Only available to applicants in Canada or the US",
+    ]) {
+      expect(excludesCanada(posting(description)), description).toBe(false);
+    }
+    expect(excludesCanada(posting("Only open to residents of the United States"))).toBe(true);
+    expect(excludesCanada(posting("Only open to residents of the United States or Canada. US work authorization required."))).toBe(true);
+  });
+
   it("labels explicit remote roles without treating hybrid work or remote tools as fully remote", () => {
     expect(remoteFromText("Remote Financial Analyst", "Canada", "")).toBe(true);
     expect(remoteFromText("Financial Analyst", "Toronto", "Work remotely within Canada.")).toBe(true);
