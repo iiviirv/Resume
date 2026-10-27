@@ -26,6 +26,24 @@ describe("remote eligibility", () => {
     expect(excludesCanada(posting("Only open to residents of the United States or Canada. US work authorization required."))).toBe(true);
   });
 
+  it("keeps remote labels when hybrid describes technology rather than attendance", () => {
+    expect(remoteFromText("Remote Data Engineer", "Canada", "Experience with hybrid cloud environments")).toBe(true);
+    expect(remoteFromText("Remote Senior Financial Analyst", "Canada", "Build reports using hybrid cloud platforms.")).toBe(true);
+    expect(remoteFromText("Remote Data Engineer, Hybrid Cloud", "Canada", "")).toBe(true);
+    expect(remoteFromText("Senior Financial Analyst", "Canada", "Fully remote role. Experience with hybrid cloud environments.")).toBe(true);
+    for (const description of [
+      "Hybrid work arrangement, with two days in the office.",
+      "This role is hybrid.",
+      "Hybrid schedule with remote days.",
+      "Hybrid with remote days.",
+      "Work arrangement: hybrid.",
+    ]) {
+      expect(remoteFromText("Remote Senior Financial Analyst", "Toronto", description), description).toBeNull();
+    }
+    expect(remoteFromText("Remote Senior Financial Analyst", "Toronto (Hybrid)", "")).toBeNull();
+    expect(remoteFromText("Remote Senior Financial Analyst (Hybrid)", "Toronto", "")).toBeNull();
+  });
+
   it("labels explicit remote roles without treating hybrid work or remote tools as fully remote", () => {
     expect(remoteFromText("Remote Financial Analyst", "Canada", "")).toBe(true);
     expect(remoteFromText("Financial Analyst", "Toronto", "Work remotely within Canada.")).toBe(true);

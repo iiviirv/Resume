@@ -62,6 +62,21 @@ describe("searchPostings", () => {
     expect(requests[0].url.searchParams.has("distance")).toBe(false);
   });
 
+  it("keeps remote Adzuna roles mentioning hybrid cloud skills in both search modes", async () => {
+    stubFetch(({ url }) => json({ count: 1, results: url.searchParams.get("what")?.endsWith(" remote")
+      ? [{ id: "remote-ca", title: "Remote Senior Financial Analyst", description: "Open to Canada residents. Experience with hybrid cloud environments.", redirect_url: "https://careers.example/remote-ca" }]
+      : [{ id: "local-ca", title: "Senior Financial Analyst", location: { display_name: "Toronto" }, redirect_url: "https://careers.example/local-ca" }],
+    }));
+    for (const remoteOnly of [true, false]) {
+      clearJobSearchCache();
+      const page = await searchPostings("ADZUNA", { appId: "app", key: "key" }, {
+        ...query, keywords: "Senior Financial Analyst", country: "ca", place: "Toronto", remoteOnly, includeRemote: !remoteOnly,
+      });
+      expect(page.postings.find((posting) => posting.externalId === "remote-ca")).toMatchObject({ remote: true });
+      if (!remoteOnly) expect(page.postings.map((posting) => posting.externalId)).toEqual(["local-ca", "remote-ca"]);
+    }
+  });
+
   it("asks the source once per half hour for the same search and page", async () => {
     const requests = stubFetch(() => json(jsearchV2Page));
     const first = await searchPostings("JSEARCH", ninja, query);

@@ -2,9 +2,12 @@ import type { FoundPosting } from "./search";
 
 /** Infer remote work only from an explicit label or statement, never a keyword match in a skills list. */
 export function remoteFromText(title: string, place: string, description: string): true | null {
-  const text = `${title}\n${place}\n${description}`;
-  if (/\b(?:not remote|no remote|hybrid|remote (?:work )?(?:is )?not (?:available|offered|permitted))\b/i.test(text)) return null;
-  return /\bremote\b/i.test(`${title}\n${place}`) || /\b(?:fully remote|100% remote|remote (?:role|position|job)|work (?:remotely|from home)|remote (?:within|across|in) Canada)\b/i.test(description) ? true : null;
+  const labels = `${title}\n${place}`;
+  const text = `${labels}\n${description}`;
+  const hybridWork = /\bhybrid[- ](?:work(?:ing)?|role|position|job|schedule|arrangement|attendance|with (?:remote|office|onsite) days)\b|\b(?:role|position|job|work (?:arrangement|model|schedule))\s*(?:is|:)\s*(?:a )?hybrid\b/i.test(text);
+  const hybridLabel = /(?:^|[(/|,])\s*hybrid\s*(?:$|[)/|,])/im.test(labels);
+  if (hybridWork || hybridLabel || /\b(?:not remote|no remote|remote (?:work )?(?:is )?not (?:available|offered|permitted))\b/i.test(text)) return null;
+  return /\bremote\b/i.test(labels) || /\b(?:fully remote|100% remote|remote (?:role|position|job)|work (?:remotely|from home)|remote (?:within|across|in) Canada)\b/i.test(description) ? true : null;
 }
 
 /** Reject stated US restrictions for a Canada search. Silence is unknown, not proof of eligibility. */
