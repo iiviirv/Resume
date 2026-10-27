@@ -48,6 +48,8 @@ export const searchQuerySchema = z.object({
     .regex(/^([a-z]{2})?$/),
   radiusKm: z.literal(RADII_KM),
   remoteOnly: z.boolean(),
+  /** Also search remote roles across the chosen country. Absent in older saved searches. */
+  includeRemote: z.boolean().optional(),
   postedWithin: z.enum(POSTED_VALUES),
 });
 export type SearchQuery = z.output<typeof searchQuerySchema>;
@@ -134,7 +136,7 @@ export type PastSearchDay = {
 export function describeSearch(query: SearchQuery, countryName: string): string {
   const where = query.place ? `${query.place}, ${query.radiusKm} km` : countryName;
   const posted = POSTED_WITHIN.find((option) => option.value === query.postedWithin);
-  return [query.keywords, where, query.remoteOnly ? "Remote only" : "", posted && posted.value !== "any" ? posted.label : ""].filter(Boolean).join(" · ");
+  return [query.keywords, where, query.remoteOnly ? "Remote only" : query.includeRemote ? `Include remote in ${countryName}` : "", posted && posted.value !== "any" ? posted.label : ""].filter(Boolean).join(" · ");
 }
 
 /** Identifies a posting across searches. */
@@ -189,6 +191,7 @@ export function queryFromParams(params: Record<string, string | string[] | undef
     country: /^[a-z]{2}$/.test(country) ? country : "",
     radiusKm: RADII_KM.find((km) => km === radius) ?? DEFAULT_RADIUS_KM,
     remoteOnly: one(params.remote) === "1",
+    ...(one(params.includeRemote) === "1" ? { includeRemote: true } : {}),
     postedWithin: posted ?? "any",
   };
 }
@@ -213,6 +216,7 @@ export function searchHref(query: SearchQuery): string {
   if (query.country) params.set("country", query.country);
   if (query.radiusKm !== DEFAULT_RADIUS_KM) params.set("radius", String(query.radiusKm));
   if (query.remoteOnly) params.set("remote", "1");
+  if (query.includeRemote) params.set("includeRemote", "1");
   if (query.postedWithin !== "any") params.set("posted", query.postedWithin);
   return `/jobs?${params.toString()}`;
 }

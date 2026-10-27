@@ -8,6 +8,7 @@ import type { JobSourceAdapter, RequestContext, SourceCredentials } from "./adap
 import { jobSearchError } from "./errors";
 import { requestJson } from "./http";
 import { POSTED_WITHIN, safeLink, type FoundPosting, type SearchPage, type SearchQuery } from "./search";
+import { remoteFromText } from "./remote";
 import { plainText } from "./text";
 
 // Adzuna (E14-2): its own job index in 19 countries, free with an app ID
@@ -60,7 +61,7 @@ export function postingFromResult(result: Result, country: string): FoundPosting
     title: plainText(result.title).slice(0, 500),
     company: plainText(result.company?.display_name).slice(0, 300),
     place: plainText(result.location?.display_name).slice(0, 300),
-    remote: null,
+    remote: remoteFromText(plainText(result.title), plainText(result.location?.display_name), plainText(result.description)),
     salary: salaryOf(result, country).slice(0, 200),
     postedAt: Number.isNaN(created) ? null : new Date(created).toISOString(),
     url: safeLink(result.redirect_url).slice(0, 2000),

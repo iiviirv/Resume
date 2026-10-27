@@ -162,3 +162,26 @@ export const arbeitsagenturDetails = {
   stellenangebotsBeschreibung: "**Wer wir sind**\r\nHafenlogik baut Software für den Hafen.\r\n\r\n\r\n**Was du machst**\n- APIs bauen\n- Tests schreiben",
   referenznummer: "10001-1003486534-S",
 };
+
+/** Canadian finance roles, including a remote role whose employer is based in the US. */
+export const canadaLocalJobs = ["Toronto", "Mississauga", "Markham", "Vaughan", "Oakville", "Brampton"].map((city, index) => ({
+  job_id: `ca-${index}`,
+  job_title: "Senior Financial Analyst",
+  employer_name: `Maple Finance ${index}`,
+  job_city: city,
+  job_state: "Ontario",
+  job_country: "CA",
+  job_is_remote: false,
+  job_apply_link: `https://careers.example/ca-${index}`,
+  job_description: "Lead financial planning, forecasting and analysis for our Ontario team.",
+  job_posted_at_datetime_utc: "2026-10-19T08:00:00Z",
+  job_min_salary: 80000,
+  job_max_salary: 95000,
+  job_salary_currency: "CAD",
+  job_salary_period: "YEAR",
+}));
+export const canadaRemoteJobs = [
+  { ...canadaLocalJobs[0], job_id: "remote-ca", job_city: "New York", job_state: "NY", job_country: "US", job_is_remote: true, job_apply_link: "https://careers.example/remote-ca", job_description: "Fully remote. Open to residents of Canada and the United States.", job_posted_at_datetime_utc: "2026-10-20T08:00:00Z" },
+  { ...canadaLocalJobs[0], job_id: "remote-us", job_is_remote: true, job_description: "Remote, US-only." },
+  { ...canadaLocalJobs[0], job_id: "remote-auth", job_is_remote: true, job_description: "Must be legally authorized to work in the United States." },
+];

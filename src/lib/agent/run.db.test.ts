@@ -1,5 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { json, stubFetch } from "@/lib/ai/test-http";
+import { canadaLocalJobs, canadaRemoteJobs } from "@/test/job-search-fixtures";
 import { demoProfile } from "@/lib/demo-profile";
 import type { FoundPosting, SearchQuery } from "@/lib/job-search/search";
 import type { JobContext } from "@/lib/jobs/runner";
@@ -109,6 +111,37 @@ beforeEach(async () => {
 afterAll(() => prisma().$disconnect());
 
 describe("runAgentScan (E16-3)", () => {
+  it("covers Toronto and Canada remote in one run within the shared scoring cap", async () => {
+    const { searchPostings } = await import("@/lib/job-search");
+    const actual = await vi.importActual<typeof import("@/lib/job-search")>("@/lib/job-search");
+    const { clearJobSearchCache } = await import("@/lib/job-search/cache");
+    clearJobSearchCache();
+    vi.mocked(searchPostings).mockImplementationOnce(actual.searchPostings);
+    const requests = stubFetch(({ url }) => json({ data: { jobs: url.searchParams.has("work_from_home") ? canadaRemoteJobs.map((job) => ({ ...job, job_posted_at_datetime_utc: "2026-10-18T08:00:00Z" })) : canadaLocalJobs, cursor: "more" } }));
+    await saveSettings({ agentQuery: { ...query, keywords: "Senior Financial Analyst", country: "ca", place: "Toronto", includeRemote: true }, agentMaxScores: 2 });
+    try {
+      const result = await runAgentScan({ manual: false }, context(), now);
+      expect(requests).toHaveLength(2);
+      expect(result).toMatchObject({ found: 7, fresh: 7, scored: 2 });
+      const candidates = await prisma().agentCandidate.findMany();
+      expect(candidates.map((candidate) => candidate.remote).sort()).toEqual([false, true]);
+      expect((await loadSettings()).agentRuns).toHaveLength(1);
+      expect(requests[1].url.searchParams.get("query")).toContain("Canada");
+      expect(requests[1].url.searchParams.has("radius")).toBe(false);
+    } finally {
+      vi.unstubAllGlobals();
+      clearJobSearchCache();
+    }
+  });
+
+  it("enforces the manual cooldown before any source request", async () => {
+    await saveSettings({ agentRuns: [{ at: new Date(now.getTime() - 30 * 60_000).toISOString(), manual: false, message: null }] });
+    const result = await runAgentScan({ manual: true }, context(), now);
+    expect(result.message).toContain("The agent ran less than an hour ago.");
+    expect(fake.searches).toBe(0);
+    expect((await loadSettings()).agentRuns).toHaveLength(1);
+  });
+
   it("searches once, scores the new postings and keeps them, below the minimum too", async () => {
     const run = context();
     const result = await runAgentScan({ manual: false }, run, now);

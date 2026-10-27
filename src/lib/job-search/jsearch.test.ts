@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { json, refused, stubFetch } from "@/lib/ai/test-http";
-import { jsearchKeyError, jsearchV2LastPage, jsearchV2Page } from "@/test/job-search-fixtures";
+import { canadaLocalJobs, jsearchKeyError, jsearchV2LastPage, jsearchV2Page } from "@/test/job-search-fixtures";
 
 import { JobSearchError } from "./errors";
 import { jsearch } from "./jsearch";
@@ -15,6 +15,18 @@ beforeEach(() => vi.unstubAllGlobals());
 afterEach(() => vi.unstubAllGlobals());
 
 describe("JSearch search", () => {
+  it("keeps GTA cities, country, radius and CAD salaries", async () => {
+    const requests = stubFetch(() => json({ data: { jobs: canadaLocalJobs, cursor: null } }));
+    for (const place of ["Toronto", "Mississauga", "Markham", "Vaughan", "Oakville", "Brampton"]) {
+      const page = await jsearch.search({ ...query, keywords: "FP&A", place, country: "ca" }, ninja, null);
+      expect(requests.at(-1)!.url.searchParams.get("query")).toBe(`FP&A in ${place}, Canada`);
+      expect(requests.at(-1)!.url.searchParams.get("country")).toBe("ca");
+      expect(requests.at(-1)!.url.searchParams.get("radius")).toBe("50");
+      expect(page.postings.map((posting) => posting.place)).toContain(`${place}, Ontario, Canada`);
+      expect(page.postings[0].salary).toBe("CAD 80,000–95,000 a year");
+    }
+  });
+
   it("asks OpenWeb Ninja's search-v2 with the key, place, country, radius and recency", async () => {
     const requests = stubFetch(() => json(jsearchV2Page));
     await jsearch.search(query, ninja, null);

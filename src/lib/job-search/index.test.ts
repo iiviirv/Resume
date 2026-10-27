@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { json, stubFetch } from "@/lib/ai/test-http";
-import { jsearchV2LastPage, jsearchV2Page } from "@/test/job-search-fixtures";
+import { canadaLocalJobs, canadaRemoteJobs, jsearchV2LastPage, jsearchV2Page } from "@/test/job-search-fixtures";
 
 import { clearJobSearchCache } from "./cache";
 import { postingDetails, searchPostings, testSource } from "./index";
@@ -21,6 +21,47 @@ afterEach(() => {
 });
 
 describe("searchPostings", () => {
+  it("combines Toronto radius and countrywide remote, dedupes links and pages only unfinished branches", async () => {
+    let call = 0;
+    const requests = stubFetch(() => {
+      call += 1;
+      return json({ data: call === 1
+        ? { jobs: [canadaLocalJobs[0]], cursor: null }
+        : call === 2
+          ? { jobs: [...canadaRemoteJobs, { ...canadaLocalJobs[0], job_id: "duplicate", job_is_remote: true }, { ...canadaLocalJobs[1], job_id: "onsite", job_apply_link: "https://careers.example/onsite" }], cursor: "remote-2" }
+          : { jobs: [{ ...canadaLocalJobs[1], job_is_remote: true }], cursor: null } });
+    });
+    const combined = { ...query, keywords: "FP&A", country: "ca", place: "Toronto", radiusKm: 50 as const, includeRemote: true };
+    const first = await searchPostings("JSEARCH", ninja, combined);
+    expect(first.postings.map((posting) => posting.externalId)).toEqual(["ca-0", "remote-ca"]);
+    expect(requests[0].url.searchParams.get("radius")).toBe("50");
+    expect(requests[1].url.searchParams.get("query")).toBe("FP&A in Canada");
+    expect(requests[1].url.searchParams.get("country")).toBe("ca");
+    expect(requests[1].url.searchParams.get("work_from_home")).toBe("true");
+    expect(requests[1].url.searchParams.has("radius")).toBe(false);
+    expect(first.next).toBe('combined:[null,"cursor:remote-2"]');
+    const second = await searchPostings("JSEARCH", ninja, combined, first.next);
+    expect(requests).toHaveLength(3);
+    expect(requests[2].url.searchParams.get("cursor")).toBe("remote-2");
+    expect(second.next).toBeNull();
+    expect(second.postings[0].externalId).toBe("ca-1");
+  });
+
+  it("searches Adzuna remote across Canada and removes explicit US restrictions", async () => {
+    const requests = stubFetch(() => json({ count: 2, results: [
+      { id: "ca", title: "Remote Analyst", description: "Open to Canada residents." },
+      { id: "us", title: "Remote Analyst", description: "US work authorization required." },
+      { id: "onsite", title: "Financial Analyst", description: "Experience with remote desktop tools." },
+    ] }));
+    const page = await searchPostings("ADZUNA", { appId: "app", key: "key" }, { ...query, country: "ca", place: "Toronto", remoteOnly: true });
+    expect(page.postings.map((posting) => posting.externalId)).toEqual(["ca"]);
+    expect(page.postings[0].remote).toBe(true);
+    expect(requests[0].url.pathname).toBe("/v1/api/jobs/ca/search/1");
+    expect(requests[0].url.searchParams.get("what")).toBe("designer remote");
+    expect(requests[0].url.searchParams.has("where")).toBe(false);
+    expect(requests[0].url.searchParams.has("distance")).toBe(false);
+  });
+
   it("asks the source once per half hour for the same search and page", async () => {
     const requests = stubFetch(() => json(jsearchV2Page));
     const first = await searchPostings("JSEARCH", ninja, query);

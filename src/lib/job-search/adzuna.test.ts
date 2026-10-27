@@ -18,6 +18,17 @@ afterEach(() => {
 });
 
 describe("Adzuna search", () => {
+  it("searches GTA cities in the Canadian index and labels remote CAD roles", async () => {
+    const requests = stubFetch(() => json({ count: 1, results: [{ id: "ca-1", title: "Remote Senior Financial Analyst", description: "Open across Canada.", location: { display_name: "Ontario, Canada" }, salary_min: 80000, salary_max: 95000 }] }));
+    for (const place of ["Toronto", "Mississauga", "Markham", "Vaughan", "Oakville", "Brampton"]) {
+      const page = await adzuna.search({ ...query, country: "ca", place }, credentials, null);
+      expect(requests.at(-1)!.url.pathname).toBe("/v1/api/jobs/ca/search/1");
+      expect(requests.at(-1)!.url.searchParams.get("where")).toBe(place);
+      expect(requests.at(-1)!.url.searchParams.get("distance")).toBe("50");
+      expect(page.postings[0]).toMatchObject({ remote: true, place: "Ontario, Canada", salary: "CAD 80,000–95,000 a year" });
+    }
+  });
+
   it("asks for the country's index, signed with the app ID and key", async () => {
     const requests = stubFetch(() => json(adzunaPage));
     await adzuna.search(query, credentials, null);
