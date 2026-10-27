@@ -11,7 +11,7 @@ const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 function client(): PrismaClient {
   globalForPrisma.prisma ??= new PrismaClient({
-    adapter: new PrismaPg({ connectionString: env.DATABASE_URL }),
+    adapter: new PrismaPg({ connectionString: env.DATABASE_URL, enableChannelBinding: true }),
   });
   return globalForPrisma.prisma;
 }

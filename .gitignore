@@ -2,6 +2,9 @@
 
 # dependencies
 /node_modules
+**/node_modules/
+**/.wrangler/
+**/.dev.vars*
 /.pnp
 .pnp.*
 .yarn/*
@@ -56,3 +59,4 @@ next-env.d.ts
 /e2e/.auth/
 /playwright-report/
 /test-results/
+.neon

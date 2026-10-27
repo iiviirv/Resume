@@ -11,6 +11,8 @@ const SIGNED_OUT_ACTIONS = new Map([
   ["src/lib/auth/actions.ts", ["signOut"]], // only clears the cookie
 ]);
 const OPEN_ROUTES = new Set([
+  "src/app/api/internal/cron/route.ts", // independent machine credential, checked below
+  "src/app/api/internal/backup/route.ts", // same machine credential; never proxied publicly
   "src/app/api/health/route.ts", // for health checks; says nothing private
   // Google's redirect comes from Google's site, so route()'s same-origin check
   // would refuse it; it checks the session and its signed state itself (E15-1).
@@ -70,6 +72,12 @@ describe("session checks (E11-5)", () => {
     const source = read("src/app/api/google/callback/route.ts");
     expect(source).toContain("await getSession()");
     expect(source).toContain("await verifyState(");
+  });
+
+  it("authenticates the external scheduler before running work", () => {
+    const source = read("src/app/api/internal/cron/route.ts");
+    expect(source.match(/if \(!cronAuthorized\(request\)\) return denied\(\);/g)).toHaveLength(2);
+    expect(read("src/app/api/internal/backup/route.ts")).toContain("if (!cronAuthorized(request)) return Response.json(");
   });
 
   it("checks the token and the switch in the Claude connector itself (#221)", () => {

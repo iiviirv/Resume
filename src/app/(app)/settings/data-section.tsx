@@ -24,6 +24,7 @@ import { SettingsSectionIntro } from "./settings-screen";
 type ZipResult = { file: string; fileName: string; documents: number };
 /** Nightly backups (E10-7) as the server sees them. */
 export type BackupStatus = {
+  managedExternally?: boolean;
   on: boolean;
   retentionDays: number;
   /** DOSSIER_DATA_DIR/backups */
@@ -114,11 +115,11 @@ export function DataSection({
 
   const runImport = async (file: File) => {
     setImporting(true);
-    toast("Backing up your data, then importing…");
+    toast(backups.managedExternally ? "Importing…" : "Backing up your data, then importing…");
     const result = await send(file, false);
     setImporting(false);
     if (!result.ok) return toast(result.error);
-    toast(`Imported. Your previous data is backed up as ${String(result.data.backup)}.`);
+    toast(result.data.backup ? `Imported. Your previous data is backed up as ${String(result.data.backup)}.` : "Imported. Keep the export you downloaded before importing.");
     router.refresh();
   };
 
@@ -212,7 +213,7 @@ export function DataSection({
         </DataRow>
         <DataRow
           title="Import"
-          description="Restore from an export file. Your current data is backed up first."
+          description={backups.managedExternally ? "Restore from an export file. Export your current data before replacing it." : "Restore from an export file. Your current data is backed up first."}
           action={
             <>
               <input
@@ -248,6 +249,9 @@ export function DataSection({
           }
         />
         <div className="flex flex-col gap-2 border-t border-line py-4">
+          {backups.managedExternally ? (
+            <p className="text-meta text-muted">File backups are disabled by your host. Backups are managed externally. Download an export before imports or deleting data.</p>
+          ) : (
           <Toggle
             label="Nightly backups"
             description={
@@ -260,6 +264,7 @@ export function DataSection({
             checked={nightly}
             onCheckedChange={switchBackups}
           />
+          )}
           {nightly && backups.problem && (
             <p role="alert" className="rounded-control bg-danger-surface px-3 py-2 text-meta text-error">
               The last backup failed: {backups.problem}
@@ -276,8 +281,8 @@ export function DataSection({
           description={
             <>
               The file, exported {new Date(preview.exportedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}, has{" "}
-              {describe(preview.incoming)}. It replaces your profile, settings and {describe(preview.current)}. Your current data is
-              backed up first.
+              {describe(preview.incoming)}. It replaces your profile, settings and {describe(preview.current)}.{" "}
+              {backups.managedExternally ? "Download an export of your current data before continuing. No file backup is made on this server." : "Your current data is backed up first."}
             </>
           }
           confirmLabel="Import and replace"

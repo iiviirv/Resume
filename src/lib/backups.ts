@@ -24,7 +24,8 @@ export function backupFileName(reason: BackupReason, now: Date): string {
 }
 
 /** Writes an export of everything to the backups folder; returns the file's name. */
-export async function writeBackup(reason: BackupReason, now = new Date()): Promise<string> {
+export async function writeBackup(reason: BackupReason, now = new Date()): Promise<string | null> {
+  if (env.DOSSIER_FILE_BACKUPS === "off") return null;
   const data = await buildExport(prisma, { now });
   await mkdir(backupsDir(), { recursive: true });
   const name = backupFileName(reason, now);

@@ -20,7 +20,7 @@ async function main() {
   }
   if (flags.has("--reset") && !flags.has("--demo")) throw new Error("--reset only works together with --demo.");
 
-  const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }) });
+  const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL, enableChannelBinding: true }) });
   try {
     await seedBuiltIns(db);
     console.log("Seeded the built-in themes.");

@@ -105,6 +105,9 @@ The first start downloads the image (about 1.7 GB) and sets up the database. Ope
 
 ## Self-hosting
 
+For a Cloudflare Worker in front of the existing Docker image, with a single
+Cloudflare Container and Neon PostgreSQL, see [Cloudflare deployment](cloudflare/README.md).
+
 To put Dossier on a server, on your own domain with HTTPS, follow the [installation guide](https://github.com/AienTech/dossier/wiki#self-host-on-a-server): a plain Ubuntu server with Docker Compose and Caddy (or Node.js, without Docker), CapRover, Coolify or Dokploy. Give the server at least 2 vCPUs and 2 GB of memory (see [Performance and sizing](#performance-and-sizing)).
 
 ## Documentation

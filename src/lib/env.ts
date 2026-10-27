@@ -55,6 +55,10 @@ const schema = z.object({
         "DATABASE_URL must be a PostgreSQL connection string starting with postgresql://.",
     }),
   ),
+  // External schedulers must authenticate independently of browser sessions.
+  DOSSIER_CRON_SECRET: optional(z.string().min(32, { error: "DOSSIER_CRON_SECRET must contain at least 32 characters." })),
+  DOSSIER_SCHEDULER: optional(z.enum(["process", "external"])),
+  DOSSIER_FILE_BACKUPS: optional(z.enum(["on", "off"])),
   DOSSIER_DATA_DIR: z
     .preprocess(unsetIfEmpty, z.string().default("/data"))
     .transform((dir) => path.resolve(dir)),
@@ -163,6 +167,9 @@ const schema = z.object({
     z.url({ protocol: /^https?$/, error: "DOSSIER_UPDATES_TEST_BASE_URL must be an http:// or https:// URL." }),
   ),
 }).check((context) => {
+  if (context.value.DOSSIER_SCHEDULER === "external" && !context.value.DOSSIER_CRON_SECRET) {
+    context.issues.push({ code: "custom", input: context.value, message: "DOSSIER_CRON_SECRET is required with an external scheduler." });
+  }
   if (context.value.DOSSIER_JOBS_SOURCE === "arbeitsagentur" && context.value.DOSSIER_JOBS_ARBEITSAGENTUR === "off") {
     context.issues.push({
       code: "custom",

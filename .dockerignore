@@ -2,6 +2,7 @@
 .github
 .next
 node_modules
+cloudflare
 src/generated
 .env*
 npm-debug.log*

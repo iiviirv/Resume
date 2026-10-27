@@ -14,6 +14,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  cloudflare:
+    name: Cloudflare Worker checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cloudflare
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: cloudflare/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npx wrangler deploy --dry-run --containers-rollout=none
+
   # On main, a pull request's merge commit holds exactly the code its pull
   # request's run checked when its tree is the branch head's (the branch was
   # up to date with main). Then main only builds the image. Anything else
