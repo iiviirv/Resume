@@ -8,7 +8,7 @@ import { savePosting } from "@/lib/postings";
 import { encryptSecret, JOB_SOURCE_KEY } from "@/lib/secrets";
 import { saveSettings } from "@/lib/settings-data";
 import { createTestClient, resetDatabase } from "@/test/db";
-import { jsearchV2LastPage, jsearchV2Page } from "@/test/job-search-fixtures";
+import { canadaLocalJobs, canadaRemoteJobs, jsearchV2LastPage, jsearchV2Page } from "@/test/job-search-fixtures";
 
 import { countSearches, listSearches, loadSearch, removeSearch, runSearch, showMoreFor } from "./posting-searches";
 
@@ -135,6 +135,36 @@ const EMPTY_POSTING = {
 };
 
 describe("showMoreFor", () => {
+  it("deduplicates links against earlier combined pages before returning and keeping additions", async () => {
+    await useJSearch();
+    const local = { ...canadaLocalJobs[0], job_apply_link: "https://careers.example/ca-0?utm_source=local" };
+    const fresh = { ...canadaLocalJobs[1], job_id: "remote-new", job_is_remote: true };
+    const requests = stubFetch(({ url }) => {
+      const cursor = url.searchParams.get("cursor");
+      if (cursor === "remote-2") return json({ data: { jobs: [
+        { ...local, job_id: "duplicate-local", job_is_remote: true, job_apply_link: "https://www.careers.example/ca-0/?utm_campaign=remote#apply" },
+        fresh,
+        { ...fresh, job_id: "without-link-1", job_apply_link: "" },
+        { ...fresh, job_id: "without-link-2", job_apply_link: "" },
+      ], cursor: "remote-3" } });
+      if (cursor === "remote-3") return json({ data: { jobs: [
+        { ...fresh, job_id: "duplicate-remote", job_apply_link: `${fresh.job_apply_link}?utm_source=later` },
+      ], cursor: null } });
+      return json({ data: { jobs: url.searchParams.has("work_from_home") ? [canadaRemoteJobs[0]] : [local], cursor: url.searchParams.has("work_from_home") ? "remote-2" : null } });
+    });
+    const run = await runSearch({ ...query, keywords: "Senior Financial Analyst", place: "Toronto", country: "ca", includeRemote: true });
+    expect(run.ok).toBe(true);
+    const id = run.ok ? run.id : "";
+    const more = await showMoreFor(id);
+    expect(more).toMatchObject({ ok: true, next: 'combined:[null,"cursor:remote-3"]' });
+    expect(more.ok && more.postings.map((posting) => posting.externalId)).toEqual(["remote-new", "without-link-1", "without-link-2"]);
+    expect(await showMoreFor(id)).toEqual({ ok: true, postings: [], next: null });
+    const stored = (await loadSearch(id))!;
+    expect(stored.postings.map((posting) => posting.externalId)).toEqual(["ca-0", "remote-ca", "remote-new", "without-link-1", "without-link-2"]);
+    expect(await prisma().postingSearch.findUniqueOrThrow({ where: { id } })).toMatchObject({ found: 5, next: null });
+    expect(requests).toHaveLength(4);
+  });
+
   it("adds the next page to the kept search, once each, from the search's own source", async () => {
     await useJSearch();
     stubFetch(() => json(jsearchV2Page));
